@@ -14,12 +14,19 @@ Date Modified :- 18 August 2015
 */
 
 #include <eHealth.h>;
+#include <PinChangeInt.h>
 
 char input = '\n';
+unsigned long current_time;
+int cont = 0;
 
 void setup()
 {
   Serial.begin(9600);
+  delay(100);
+  eHealth.initPulsioximeter();
+  //Attach the inttruptions for using the pulsioximeter.   
+  PCintPort::attachInterrupt(6, readPulsioximeter, RISING);
 }
 
 void loop()
@@ -55,6 +62,10 @@ void serialEvent()
   {
     input = (char)Serial.read();
   }
+  if(input == 's')
+  {
+    current_time = millis();
+  }
 }
 
 void send_temperature()
@@ -81,7 +92,10 @@ void send_temperature()
 
 void send_skin_reading()
 {
-  float temp[3][4], avg_cond=0.0, avg_res= 0.0, avg_vol=0.0;
+  float temp[3], avg_cond=0.0, avg_res= 0.0, avg_vol=0.0;
+  unsigned long time_diff;
+  
+  /*
   for(int x=0;x<4;x++)
   {
     temp[0][x] = eHealth.getSkinConductance();
@@ -100,11 +114,20 @@ void send_skin_reading()
   avg_cond /=4;
   avg_res /=4;
   avg_vol /=4;
-  Serial.print(avg_cond);
+  */
+  time_diff = (unsigned long)(millis() - current_time);
+  temp[0] = eHealth.getSkinConductance();
+  temp[1] = eHealth.getSkinResistance();
+  temp[2] = eHealth.getSkinConductanceVoltage();
+  
+  Serial.print(time_diff);
   Serial.print(",");
-  Serial.print(avg_res);
+  Serial.print(temp[0]);
   Serial.print(",");
-  Serial.println(avg_vol);
+  Serial.print(temp[1]);
+  Serial.print(",");
+  Serial.println(temp[2]);
+  delay(100);
   
 //  Serial.print("s");
 //  Serial.print(avg_cond);
@@ -118,5 +141,21 @@ void send_skin_reading()
 
 void send_pulseox()
 {
+  Serial.print(eHealth.getBPM());
+  Serial.print(",");
+  Serial.println(eHealth.getOxygenSaturation());
+  delay(100);
+}
 
+
+//Include always this code when using the pulsioximeter sensor
+//=========================================================================
+void readPulsioximeter(){  
+
+  cont ++;
+
+  if (cont == 50) { //Get only of one 50 measures to reduce the latency
+    eHealth.readPulsioximeter();  
+    cont = 0;
+  }
 }
